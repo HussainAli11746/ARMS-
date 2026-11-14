@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/arms/auth';
-import { ensureInitialized, getState, saveState } from '@/lib/arms/db';
+import { getState, saveState } from '@/lib/arms/db';
 import { applyCommand, publicSnapshot } from '@/lib/arms/service';
 
 export async function POST(request: Request) {
   try {
-    await ensureInitialized();
     const actor = requireAuth(request);
-    const body = (await request.json()) as { action: string; [key: string]: unknown };
+    const body = (await request.json()) as {
+      action: string;
+      [key: string]: unknown;
+    };
     const expectedRevision = Number(body.revision);
 
     if (Number.isFinite(expectedRevision)) {
@@ -16,7 +18,8 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             ok: false,
-            error: 'This record was updated in another session. Please refresh before saving.',
+            error:
+              'This record was updated in another session. Please refresh before saving.',
             code: 'VERSION_CONFLICT',
           },
           { status: 409 },

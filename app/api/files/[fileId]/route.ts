@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/arms/auth';
-import { ensureInitialized, getFile, getState } from '@/lib/arms/db';
+import { getFile, getState } from '@/lib/arms/db';
 import { authorizedFile } from '@/lib/arms/service';
 
 export async function GET(
@@ -8,7 +8,6 @@ export async function GET(
   { params }: { params: Promise<{ fileId: string }> },
 ) {
   try {
-    await ensureInitialized();
     const actor = requireAuth(request);
     const { fileId } = await params;
     const { state } = getState();
@@ -18,7 +17,10 @@ export async function GET(
 
     const fileRecord = getFile(meta.id);
     if (!fileRecord) {
-      return NextResponse.json({ ok: false, error: 'File data not found in storage.' }, { status: 404 });
+      return NextResponse.json(
+        { ok: false, error: 'File data not found in storage.' },
+        { status: 404 },
+      );
     }
 
     return new Response(new Uint8Array(fileRecord.data), {

@@ -28,7 +28,10 @@ export const categories = [
 ] as const;
 export type Category = (typeof categories)[number];
 
-export type Body = 'Anti-Ragging Squad' | 'Anti-Ragging Committee' | 'Administrator review';
+export type Body =
+  | 'Anti-Ragging Squad'
+  | 'Anti-Ragging Committee'
+  | 'Administrator review';
 
 export type User = {
   id: string;
@@ -37,6 +40,15 @@ export type User = {
   role: Role;
   active: boolean;
   studentId?: string;
+};
+
+// Temporary actor for the public report form. Never saved as a student account.
+export const anonymousReporter: User = {
+  id: 'anonymous',
+  name: 'Anonymous visitor',
+  email: '',
+  role: 'student',
+  active: true,
 };
 
 export type Attachment = {
@@ -163,20 +175,34 @@ export type Snapshot = Omit<State, 'requests'> & {
   serverTime: string;
 };
 
-export const isHandler = (user: User) => user.role === 'squad' || user.role === 'committee';
-export const isOversight = (user: User) => user.role === 'administrator' || user.role === 'oversight';
+export const isHandler = (user: User) =>
+  user.role === 'squad' || user.role === 'committee';
+export const isOversight = (user: User) =>
+  user.role === 'administrator' || user.role === 'oversight';
+
+// Keep undertaking-review permissions in one place for both UI and server.
+export function canReviewUndertaking(user: User): boolean {
+  return user.role === 'administrator';
+}
 
 export function canViewCase(user: User, record: CaseRecord): boolean {
   if (isOversight(user)) return true;
   if (user.role === 'student') return record.reporterId === user.id;
-  if (user.role === 'parent') return Boolean(user.studentId && record.reporterId === user.studentId);
-  if (user.role === 'squad') return record.assignedBody === 'Anti-Ragging Squad';
-  if (user.role === 'committee') return record.assignedBody === 'Anti-Ragging Committee';
+  if (user.role === 'parent')
+    return Boolean(user.studentId && record.reporterId === user.studentId);
+  if (user.role === 'squad')
+    return record.assignedBody === 'Anti-Ragging Squad';
+  if (user.role === 'committee')
+    return record.assignedBody === 'Anti-Ragging Committee';
   return false;
 }
 
 export function nextStatus(user: User, record: CaseRecord): CaseStatus | null {
-  if (!isHandler(user) || !canViewCase(user, record) || record.status === 'Closed') {
+  if (
+    !isHandler(user) ||
+    !canViewCase(user, record) ||
+    record.status === 'Closed'
+  ) {
     return null;
   }
 
@@ -189,13 +215,18 @@ export function nextStatus(user: User, record: CaseRecord): CaseStatus | null {
   }
 
   // Committee Member Transitions
-  if (user.role === 'committee' && record.assignedBody === 'Anti-Ragging Committee') {
+  if (
+    user.role === 'committee' &&
+    record.assignedBody === 'Anti-Ragging Committee'
+  ) {
     // If case is directly assigned to Committee (e.g. Online harassment)
     if (record.status === 'Acknowledged') return 'Under Investigation';
     if (record.status === 'Under Investigation') return 'Findings Recorded';
-    if (record.status === 'Findings Recorded') return 'Committee Decision Recorded';
+    if (record.status === 'Findings Recorded')
+      return 'Committee Decision Recorded';
     // If escalated from Squad
-    if (record.status === 'Escalated to Committee') return 'Committee Decision Recorded';
+    if (record.status === 'Escalated to Committee')
+      return 'Committee Decision Recorded';
     if (record.status === 'Committee Decision Recorded') return 'Action Taken';
     if (record.status === 'Action Taken') return 'Closed';
     return null;
@@ -217,7 +248,9 @@ export function deadlineState(
     day: '2-digit',
   }).format(now);
   const days = Math.round(
-    (Date.parse(`${record.dueDate}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86400000,
+    (Date.parse(`${record.dueDate}T00:00:00Z`) -
+      Date.parse(`${today}T00:00:00Z`)) /
+      86400000,
   );
   return days < 0 ? 'Overdue' : days <= 2 ? 'Due soon' : 'On track';
 }

@@ -586,10 +586,11 @@ void test('ARMS Backend Test Suite', async (t) => {
   console.log('✅ ALL BACKEND AND BUSINESS LOGIC TESTS PASSED!');
 });
 
-// Clean up isolated test scratch directory
-try {
+// Close SQLite before removing this test-only directory.
+test.after(async () => {
+  const { closeDatabase } = await import('../lib/arms/storage.ts');
+  closeDatabase();
   const fs = await import('node:fs');
   const path = await import('node:path');
-  const testDir = path.join(process.cwd(), '.data_test_isolated');
-  if (fs.existsSync(testDir)) fs.rmSync(testDir, { recursive: true, force: true });
-} catch {}
+  fs.rmSync(path.join(process.cwd(), '.data_test_isolated'), { recursive: true, force: true });
+});

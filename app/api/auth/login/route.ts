@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
-import { createSession, ensureInitialized, getState, verifyCredentials } from '@/lib/arms/db';
+import { createSession, getState, verifyCredentials } from '@/lib/arms/db';
 
 export async function POST(request: Request) {
   try {
-    await ensureInitialized();
     const body = (await request.json()) as Record<string, unknown>;
     const email = typeof body.email === 'string' ? body.email : '';
     const password = typeof body.password === 'string' ? body.password : '';
-    const demoUserId = typeof body.demoUserId === 'string' ? body.demoUserId : undefined;
+    const demoUserId =
+      typeof body.demoUserId === 'string' ? body.demoUserId : undefined;
 
     let user = null;
     if (demoUserId) {
@@ -20,7 +20,10 @@ export async function POST(request: Request) {
 
     if (!user) {
       return NextResponse.json(
-        { ok: false, error: 'Invalid institutional credentials or inactive account.' },
+        {
+          ok: false,
+          error: 'Invalid institutional credentials or inactive account.',
+        },
         { status: 401 },
       );
     }

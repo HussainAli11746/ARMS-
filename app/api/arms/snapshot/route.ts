@@ -1,20 +1,21 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/arms/auth';
-import { ensureInitialized, getState, saveState } from '@/lib/arms/db';
-import { generateDeadlineNotifications, publicSnapshot } from '@/lib/arms/service';
+import { getState, saveState } from '@/lib/arms/db';
+import {
+  generateDeadlineNotifications,
+  publicSnapshot,
+} from '@/lib/arms/service';
 
 export async function GET(request: Request) {
   try {
-    await ensureInitialized();
     const actor = requireAuth(request);
-    const { state } = getState();
-    let { version } = getState();
+    const current = getState();
+    const { state } = current;
+    let { version } = current;
 
     // Check deadlines and generate notifications if needed
     if (generateDeadlineNotifications(state)) {
-      try {
-        version = await saveState(state, version);
-      } catch {}
+      version = await saveState(state, version);
     }
 
     const snapshot = publicSnapshot(state, actor, version);

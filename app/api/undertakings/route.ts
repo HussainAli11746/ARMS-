@@ -1,25 +1,13 @@
-
-function isBlobLike(val: unknown): val is Blob & { name?: string } {
-  return (
-    typeof val === "object" &&
-    val !== null &&
-    "size" in val &&
-    typeof (val as { size: unknown }).size === "number" &&
-    (val as { size: number }).size > 0 &&
-    "arrayBuffer" in val &&
-    typeof (val as { arrayBuffer: unknown }).arrayBuffer === "function"
-  );
-}
+import { isUploadedFile } from '@/lib/arms/upload';
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/arms/auth';
-import { ensureInitialized, getState, saveFile, saveState } from '@/lib/arms/db';
+import { getState, saveState } from '@/lib/arms/db';
 import { applyCommand, publicSnapshot } from '@/lib/arms/service';
 import { validateFileBytes } from '@/lib/arms/upload';
 import type { Attachment } from '@/lib/arms/model';
 
 export async function POST(request: Request) {
   try {
-    await ensureInitialized();
     const actor = requireAuth(request);
     const formData = await request.formData();
 
@@ -30,14 +18,20 @@ export async function POST(request: Request) {
     const versionStr = formData.get('version');
     const version = versionStr ? Number(versionStr) : undefined;
 
-    if (!isBlobLike(file)) {
-      return NextResponse.json({ ok: false, error: 'Upload a signed undertaking PDF document.' }, { status: 422 });
+    if (!isUploadedFile(file)) {
+      return NextResponse.json(
+        { ok: false, error: 'Upload a signed undertaking PDF document.' },
+        { status: 422 },
+      );
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const { mime } = validateFileBytes((file as File).name, buffer);
     if (mime !== 'application/pdf') {
-      return NextResponse.json({ ok: false, error: 'The undertaking must be a valid PDF document.' }, { status: 422 });
+      return NextResponse.json(
+        { ok: false, error: 'The undertaking must be a valid PDF document.' },
+        { status: 422 },
+      );
     }
 
     const fileId = `file-${crypto.randomUUID()}`;
@@ -76,13 +70,13 @@ export async function POST(request: Request) {
       attachment,
     );
 
-    // Only commit file after command succeeds
-    await saveFile(pendingFileRecord);
-
-    const nextVer = await saveState(state, currentVersion);
+    const nextVer = await saveState(state, currentVersion, pendingFileRecord);
     const snapshot = publicSnapshot(state, actor, nextVer);
 
-    return NextResponse.json({ ok: true, undertakingId, snapshot }, { status: 201 });
+    return NextResponse.json(
+      { ok: true, undertakingId, snapshot },
+      { status: 201 },
+    );
   } catch (err: unknown) {
     const status = (err as { status?: number })?.status || 500;
     const errMsg = err instanceof Error ? err.message : 'Internal error';

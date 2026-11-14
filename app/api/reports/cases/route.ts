@@ -1,15 +1,18 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/arms/auth';
-import { ensureInitialized, getState } from '@/lib/arms/db';
+import { getState } from '@/lib/arms/db';
 import { isOversight } from '@/lib/arms/model';
 
 export async function GET(request: Request) {
   try {
-    await ensureInitialized();
     const actor = requireAuth(request);
     if (!isOversight(actor) && actor.role !== 'committee') {
       return NextResponse.json(
-        { ok: false, error: 'Only administrative and committee roles may access case reports.' },
+        {
+          ok: false,
+          error:
+            'Only administrative and committee roles may access case reports.',
+        },
         { status: 403 },
       );
     }
@@ -33,7 +36,8 @@ export async function GET(request: Request) {
     }
 
     if (format === 'csv') {
-      const header = 'Case ID,Category,Report Mode,Status,Initial Body,Assigned Body,Created At,Due Date\n';
+      const header =
+        'Case ID,Category,Report Mode,Status,Initial Body,Assigned Body,Created At,Due Date\n';
       const rows = state.cases
         .map(
           (c) =>
