@@ -1,13 +1,26 @@
 import { DomainError } from './service.ts';
 
-export function validateFileBytes(name: string, buffer: Buffer): { mime: string } {
-  if (buffer.length > 10 * 1024 * 1024) {
+// Node FormData contains strings or File objects.
+export function isUploadedFile(value: unknown): value is File {
+  return value instanceof File && value.size > 0;
+}
+
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
+export function validateFileBytes(
+  name: string,
+  buffer: Buffer,
+): { mime: string } {
+  if (buffer.length > MAX_UPLOAD_BYTES) {
     throw new DomainError(413, 'File exceeds maximum permitted size of 10 MB.');
   }
 
   // Minimum size for any valid file
   if (buffer.length < 24) {
-    throw new DomainError(422, 'The file is truncated or empty and cannot be parsed.');
+    throw new DomainError(
+      422,
+      'The file is truncated or empty and cannot be parsed.',
+    );
   }
 
   // PDF Validation:
@@ -22,9 +35,14 @@ export function validateFileBytes(name: string, buffer: Buffer): { mime: string 
     buffer[3] === 0x46 &&
     buffer[4] === 0x2d
   ) {
-    const tail = buffer.subarray(Math.max(0, buffer.length - 1024)).toString('latin1');
+    const tail = buffer
+      .subarray(Math.max(0, buffer.length - 1024))
+      .toString('latin1');
     if (!tail.includes('%%EOF')) {
-      throw new DomainError(422, 'The PDF file appears truncated or corrupted (missing %%EOF marker).');
+      throw new DomainError(
+        422,
+        'The PDF file appears truncated or corrupted (missing %%EOF marker).',
+      );
     }
     return { mime: 'application/pdf' };
   }
@@ -49,7 +67,10 @@ export function validateFileBytes(name: string, buffer: Buffer): { mime: string 
       buffer[14] !== 0x44 ||
       buffer[15] !== 0x52
     ) {
-      throw new DomainError(422, 'The PNG file appears corrupted (missing IHDR header).');
+      throw new DomainError(
+        422,
+        'The PNG file appears corrupted (missing IHDR header).',
+      );
     }
     return { mime: 'image/png' };
   }
@@ -58,7 +79,12 @@ export function validateFileBytes(name: string, buffer: Buffer): { mime: string 
   // 1. Starts with SOI: 0xFF, 0xD8, 0xFF
   // 2. Minimum size >= 64 bytes
   // 3. Ends with EOI: 0xFF, 0xD9 in trailing bytes
-  if (buffer.length >= 30 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+  if (
+    buffer.length >= 30 &&
+    buffer[0] === 0xff &&
+    buffer[1] === 0xd8 &&
+    buffer[2] === 0xff
+  ) {
     const lastBytes = buffer.subarray(buffer.length - 16);
     let hasEoi = false;
     for (let i = 0; i < lastBytes.length - 1; i++) {
@@ -68,10 +94,16 @@ export function validateFileBytes(name: string, buffer: Buffer): { mime: string 
       }
     }
     if (!hasEoi) {
-      throw new DomainError(422, 'The JPEG file appears truncated or corrupted (missing EOI marker).');
+      throw new DomainError(
+        422,
+        'The JPEG file appears truncated or corrupted (missing EOI marker).',
+      );
     }
     return { mime: 'image/jpeg' };
   }
 
-  throw new DomainError(415, 'Invalid file format. Only valid PDF, JPG, and PNG files are permitted.');
+  throw new DomainError(
+    415,
+    'Invalid file format. Only valid PDF, JPG, and PNG files are permitted.',
+  );
 }

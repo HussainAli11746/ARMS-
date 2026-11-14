@@ -1,18 +1,7 @@
-
-function isBlobLike(val: unknown): val is Blob & { name?: string } {
-  return (
-    typeof val === "object" &&
-    val !== null &&
-    "size" in val &&
-    typeof (val as { size: unknown }).size === "number" &&
-    (val as { size: number }).size > 0 &&
-    "arrayBuffer" in val &&
-    typeof (val as { arrayBuffer: unknown }).arrayBuffer === "function"
-  );
-}
+import { isUploadedFile } from '@/lib/arms/upload';
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/arms/auth';
-import { ensureInitialized, getState, saveFile, saveState } from '@/lib/arms/db';
+import { getState, saveState } from '@/lib/arms/db';
 import { applyCommand, publicSnapshot } from '@/lib/arms/service';
 import { validateFileBytes } from '@/lib/arms/upload';
 import type { Attachment } from '@/lib/arms/model';
@@ -22,7 +11,6 @@ export async function POST(
   { params }: { params: Promise<{ caseId: string }> },
 ) {
   try {
-    await ensureInitialized();
     const actor = requireAuth(request);
     const { caseId } = await params;
     const formData = await request.formData();
@@ -31,8 +19,11 @@ export async function POST(
     const note = (formData.get('note') as string) || '';
     const version = Number(formData.get('version'));
 
-    if (!isBlobLike(file)) {
-      return NextResponse.json({ ok: false, error: 'Please choose a file to attach.' }, { status: 422 });
+    if (!isUploadedFile(file)) {
+      return NextResponse.json(
+        { ok: false, error: 'Please choose a file to attach.' },
+        { status: 422 },
+      );
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -66,16 +57,15 @@ export async function POST(
       {
         action: 'evidence',
         caseId,
-        version: Number.isFinite(version) ? version : state.cases.find((c) => c.id === caseId)?.version,
+        version: Number.isFinite(version)
+          ? version
+          : state.cases.find((c) => c.id === caseId)?.version,
         note,
       },
       attachment,
     );
 
-    // Only commit file after command validation passes
-    await saveFile(pendingFileRecord);
-
-    const nextVer = await saveState(state, currentVersion);
+    const nextVer = await saveState(state, currentVersion, pendingFileRecord);
     const snapshot = publicSnapshot(state, actor, nextVer);
 
     return NextResponse.json({ ok: true, fileId, snapshot });

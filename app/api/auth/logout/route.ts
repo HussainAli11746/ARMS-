@@ -13,7 +13,10 @@ export async function POST(request: Request) {
       deleteSession(authHeader.slice(7).trim());
     }
 
-    const response = NextResponse.json({ ok: true, message: 'Logged out successfully.' });
+    const response = NextResponse.json({
+      ok: true,
+      message: 'Logged out successfully.',
+    });
     response.cookies.set('arms_session', '', {
       path: '/',
       httpOnly: true,

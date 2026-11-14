@@ -18,7 +18,11 @@ async function login(userId: string): Promise<{ token: string; user: any; cookie
 }
 
 async function runCommand(token: string, payload: any) {
-  const res = await fetch(`${BASE_URL}/api/arms/command`, {
+  let endpoint = '/api/arms/command';
+  if (payload.action === 'status') endpoint = `/api/cases/${payload.caseId}/status`;
+  if (payload.action === 'reopen') endpoint = `/api/cases/${payload.caseId}/reopen`;
+  if (payload.action === 'review') endpoint = `/api/undertakings/${payload.undertakingId}/reviews`;
+  const res = await fetch(`${BASE_URL}${endpoint}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

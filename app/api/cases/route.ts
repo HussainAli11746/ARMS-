@@ -1,29 +1,20 @@
-
-function isBlobLike(val: unknown): val is Blob & { name?: string } {
-  return (
-    typeof val === "object" &&
-    val !== null &&
-    "size" in val &&
-    typeof (val as { size: unknown }).size === "number" &&
-    (val as { size: number }).size > 0 &&
-    "arrayBuffer" in val &&
-    typeof (val as { arrayBuffer: unknown }).arrayBuffer === "function"
-  );
-}
+import { isUploadedFile } from '@/lib/arms/upload';
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/arms/auth';
-import { ensureInitialized, getState, saveFile, saveState } from '@/lib/arms/db';
-import { applyCommand, publicSnapshot } from '@/lib/arms/service';
+import { getSessionUser } from '@/lib/arms/auth';
+import { getState, saveState } from '@/lib/arms/db';
+import { applyCommand, publicSnapshot, DomainError } from '@/lib/arms/service';
+import { anonymousReporter } from '@/lib/arms/model';
 import { validateFileBytes } from '@/lib/arms/upload';
 import type { Attachment } from '@/lib/arms/model';
 
 export async function POST(request: Request) {
   try {
-    await ensureInitialized();
-    const actor = requireAuth(request);
+    const signedInUser = getSessionUser(request);
     const contentType = request.headers.get('content-type') || '';
 
-    let commandData: { action: string; [key: string]: unknown } = { action: 'report' };
+    let commandData: { action: string; [key: string]: unknown } = {
+      action: 'report',
+    };
     let attachedFile: Attachment | undefined = undefined;
     let pendingFileToSave: {
       id: string;
@@ -41,7 +32,7 @@ export async function POST(request: Request) {
       let uploadedBlob: File | null = null;
 
       for (const [key, value] of formData.entries()) {
-        if (key === 'evidence' && isBlobLike(value)) {
+        if (key === 'evidence' && isUploadedFile(value)) {
           uploadedBlob = value as File;
         } else {
           fields[key] = value;
@@ -66,8 +57,11 @@ export async function POST(request: Request) {
         const { mime } = validateFileBytes(uploadedBlob.name, buffer);
         const fileId = `file-${crypto.randomUUID()}`;
         const now = new Date().toISOString();
-        const uploaderId = commandData.mode === 'anonymous' ? 'anonymous' : actor.id;
-        
+        const uploaderId =
+          commandData.mode === 'anonymous'
+            ? 'anonymous'
+            : (signedInUser?.id ?? '');
+
         pendingFileToSave = {
           id: fileId,
           name: uploadedBlob.name,
@@ -92,15 +86,19 @@ export async function POST(request: Request) {
       commandData.action = 'report';
     }
 
+    // Only anonymous reporting is public; named reports still require sign-in.
+    if (!signedInUser && commandData.mode !== 'anonymous') {
+      throw new DomainError(401, 'Please sign in to submit a named report.');
+    }
+    const actor = signedInUser ?? anonymousReporter;
     const { state, version } = getState();
     const caseId = applyCommand(state, actor, commandData, attachedFile);
 
-    // Only commit file to storage after applyCommand business logic succeeds
-    if (pendingFileToSave) {
-      await saveFile(pendingFileToSave);
-    }
-
-    const nextVersion = await saveState(state, version);
+    const nextVersion = await saveState(
+      state,
+      version,
+      pendingFileToSave ?? undefined,
+    );
     const snapshot = publicSnapshot(state, actor, nextVersion);
 
     return NextResponse.json({ ok: true, caseId, snapshot }, { status: 201 });
