@@ -1,0 +1,27 @@
+digraph ComponentDesign {
+  graph [rankdir=TB, bgcolor=white, pad=0.3, nodesep=0.65, ranksep=0.72, splines=ortho, fontname="Helvetica", fontsize=20, label="ARMS component design | selected use cases", labelloc=t, newrank=true];
+  node [shape=component, style="filled", color="#214D70", fillcolor="#EAF3FA", fontname="Helvetica", fontsize=11, margin="0.18,0.13", penwidth=1.2, width=2.3];
+  edge [color="#466B85", arrowsize=0.7, penwidth=1.2];
+  ui [label="ARMS Web UI\nforms and role-specific views", fillcolor="#D8ECF8"];
+  access [label="Access and Role\nIAuth | IRoleAccess | IAuthorization"];
+  report [label="Reporting and Evidence\nsubmitNamedReport()"];
+  caseflow [label="Case Workflow\ncreate() | updateStatus() | reopen()"];
+  undertaking [label="Undertaking\nsubmit() | review()"];
+  directory [label="Committee Directory\nactiveMembers()"];
+  notification [label="Notification\nenqueue() | dispatch()"];
+  audit [label="Audit and Persistence\nrecord() | transaction"];
+  files [label="Protected File Storage\nstage() | readAuthorized()"];
+  data [shape=cylinder, label="ARMS data store", style=filled, fillcolor="#FFF1E5", color="#A6632D"];
+  storage [shape=folder, label="Private file store", style=filled, fillcolor="#FFF1E5", color="#A6632D"];
+  gateway [shape=box, label="Message gateway", style="filled,rounded", fillcolor="#FFF1E5", color="#A6632D"];
+  {rank=same; report; caseflow; undertaking;}
+  {rank=same; directory; notification; access;}
+  {rank=same; audit; files;}
+  {rank=same; data; storage; gateway;}
+  ui -> access; access -> report; access -> caseflow; access -> undertaking;
+  report -> caseflow [style=dashed]; report -> files [style=dashed]; report -> audit [style=dashed];
+  caseflow -> directory [style=dashed]; caseflow -> notification [style=dashed]; caseflow -> audit [style=dashed];
+  undertaking -> files [style=dashed]; undertaking -> notification [style=dashed]; undertaking -> audit [style=dashed];
+  report -> notification [style=dashed]; directory -> audit [style=dashed];
+  audit -> data; files -> storage; notification -> gateway;
+}

@@ -1,0 +1,46 @@
+digraph Architecture {
+  graph [rankdir=TB, bgcolor=white, pad=0.35, nodesep=0.55, ranksep=0.75, splines=ortho, fontname="Helvetica", fontsize=20, label="ARMS layered client-server architecture", labelloc=t, newrank=true];
+  node [shape=component, style="filled", color="#214D70", fillcolor="#EAF3FA", fontname="Helvetica", fontsize=11, margin="0.21,0.13", penwidth=1.2];
+  edge [color="#466B85", arrowsize=0.7, penwidth=1.2];
+
+  layer_ui [shape=plaintext, label="Presentation", fontcolor="#0C5C90", fontsize=15];
+  layer_api [shape=plaintext, label="API and access", fontcolor="#0C5C90", fontsize=15];
+  layer_app [shape=plaintext, label="Application", fontcolor="#0C5C90", fontsize=15];
+  layer_infra [shape=plaintext, label="Infrastructure", fontcolor="#0C5C90", fontsize=15];
+  layer_external [shape=plaintext, label="External / storage", fontcolor="#A6632D", fontsize=15];
+
+  browser [label="ARMS browser UI\nStudent | Squad | Committee | Administrator", fillcolor="#D8ECF8"];
+  api [label="HTTPS API\nrequest validation + stable errors"];
+  auth [label="Session and role checks\nUser + Role"];
+  report [label="Reporting and evidence\nUC-003"];
+  caseflow [label="Case workflow\nUC-007 + initial route"];
+  undertaking [label="Undertaking and review\nUC-011"];
+  shared [label="Shared services\nDirectory | Notification | Audit"];
+  repo [label="Repositories + transactions"];
+  files [label="Protected file adapter"];
+  delivery [label="Notification adapter"];
+
+  database [shape=cylinder, label="ARMS database", style=filled, fillcolor="#FFF1E5", color="#A6632D"];
+  objectstore [shape=folder, label="Private file store", style=filled, fillcolor="#FFF1E5", color="#A6632D"];
+  gateway [shape=box, label="Message gateway", style="filled,rounded", fillcolor="#FFF1E5", color="#A6632D"];
+  identity [shape=box, label="Institutional identity provider\n(planned integration)", style="filled,rounded", fillcolor="#FFF1E5", color="#A6632D"];
+
+  {rank=same; layer_ui; browser;}
+  {rank=same; layer_api; api; auth;}
+  {rank=same; layer_app; report; caseflow; undertaking; shared;}
+  {rank=same; layer_infra; repo; files; delivery;}
+  {rank=same; layer_external; database; objectstore; gateway; identity;}
+
+  layer_ui -> layer_api -> layer_app -> layer_infra -> layer_external [style=invis, weight=25];
+  layer_ui -> browser [style=invis, weight=50];
+  layer_api -> api [style=invis, weight=50];
+  layer_app -> report [style=invis, weight=50];
+  layer_infra -> repo [style=invis, weight=50];
+  layer_external -> database [style=invis, weight=50];
+
+  browser -> api; api -> auth;
+  auth -> report; auth -> caseflow; auth -> undertaking; auth -> shared;
+  report -> caseflow [style=dashed]; caseflow -> shared [style=dashed];
+  report -> repo; report -> files; caseflow -> repo; undertaking -> repo; undertaking -> files; shared -> repo; shared -> delivery;
+  repo -> database; files -> objectstore; delivery -> gateway; auth -> identity [style=dashed];
+}

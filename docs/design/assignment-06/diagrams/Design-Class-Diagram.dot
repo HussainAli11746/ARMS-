@@ -1,0 +1,35 @@
+digraph DesignClass {
+  graph [rankdir=TB, bgcolor=white, pad=0.28, nodesep=0.45, ranksep=0.85, splines=polyline, fontname="Helvetica", fontsize=20, label="ARMS design class diagram | T038 | UC-003, UC-007, UC-011", labelloc=t];
+  node [shape=record, style="filled", fillcolor="#F4F8FC", color="#254B68", fontname="Helvetica", fontsize=10, margin="0.13,0.09", penwidth=1.1];
+  edge [color="#536F83", fontname="Helvetica", fontsize=8, penwidth=1.1, arrowsize=0.7];
+
+  User [label="{User| - userId: UUID\l - name: String\l - institutionalEmail: String\l - accountStatus: AccountStatus\l - roleId: UUID\l| + login(credentials: Credentials): SessionResult\l + logout(sessionId: UUID): void\l}", fillcolor="#DCECF8"];
+  Role [label="{Role| - roleId: UUID\l - roleName: String\l - permittedFunctions: Set\<Permission\>\l| + hasPermission(p: Permission): Boolean\l}"];
+  Case [label="{Case| - caseId: String\l - reporterId: UUID?\l - reportMode: ReportMode\l - category: String\l - description: String\l - incidentAt: Instant?\l - currentStatus: CaseStatus\l - assignedBody: BodyType?\l - dueDate: LocalDate?\l - version: Integer\l| + updateStatus(next: CaseStatus, note: String, actor: User): CaseHistory\l + close(reason: String, actor: User): CaseHistory\l + checkDeadline(now: LocalDate): Boolean\l}", fillcolor="#DCECF8"];
+  EvidenceAttachment [label="{EvidenceAttachment| - attachmentId: UUID\l - caseId: String\l - filename: String\l - fileType: MimeType\l - storageRef: FileRef\l - uploadTime: Instant\l| + validateFileType(): Boolean\l + attachToCase(caseId: String): void\l}"];
+  CaseHistory [label="{CaseHistory| - historyId: UUID\l - caseId: String\l - previousStatus: CaseStatus\l - newStatus: CaseStatus\l - actionNote: String\l - timestamp: Instant\l - actorId: UUID\l| + recordChange(): void\l}"];
+  CaseStatusValidator [label="{CaseStatusValidator| (no persistent attributes)\l| + canTransition(case: Case, user: User, next: CaseStatus): Boolean\l + isReopeningAuthorized(user: User, case: Case): Boolean\l}"];
+  Undertaking [label="{Undertaking| - undertakingId: UUID\l - studentId: UUID\l - submittedById: UUID\l - semester: String\l - documentFile: FileRef\l - submissionDate: Instant\l - currentStatus: UndertakingStatus\l - version: Integer\l| + submit(pdf: FileRef): void\l + resubmit(pdf: FileRef): void\l}", fillcolor="#DCECF8"];
+  UndertakingVerification [label="{UndertakingVerification| - verificationId: UUID\l - undertakingId: UUID\l - decision: VerificationDecision\l - reviewDate: Instant\l - rejectionReason: String?\l - reviewerId: UUID\l| + accept(reviewer: User): void\l + reject(reason: String, reviewer: User): void\l}"];
+  Notification [label="{Notification| - notificationId: UUID\l - recipientId: UUID\l - type: NotificationType\l - message: String\l - deliveryStatus: DeliveryStatus\l - sentAt: Instant?\l| + send(): DeliveryResult\l + markDelivered(at: Instant): void\l}"];
+  NotificationService [label="{NotificationService| - channel: DeliveryChannel\l| + dispatch(notification: Notification): DeliveryResult\l}"];
+  CommitteeDirectoryEntry [label="{CommitteeDirectoryEntry| - entryId: UUID\l - memberName: String\l - committeeOrSquad: BodyType\l - contactDetails: String\l - activeStatus: Boolean\l| (no domain operation)\l}"];
+  AuditLog [label="{AuditLog| - auditId: UUID\l - actorId: UUID\l - action: String\l - targetType: String\l - targetId: String\l - timestamp: Instant\l| + recordAction(): void\l}"];
+
+  User -> Role [arrowhead=none, taillabel="0..*", headlabel="1"];
+  Case -> User [arrowhead=none, taillabel="0..*", headlabel="0..1"];
+  Case -> EvidenceAttachment [dir=both, arrowtail=diamond, arrowhead=none, taillabel="1", headlabel="0..*"];
+  Case -> CaseHistory [dir=both, arrowtail=diamond, arrowhead=none, taillabel="1", headlabel="0..*"];
+  EvidenceAttachment -> User [arrowhead=none];
+  CaseHistory -> User [arrowhead=none];
+  Undertaking -> User [arrowhead=none];
+  Undertaking -> UndertakingVerification [dir=both, arrowtail=diamond, arrowhead=none, taillabel="1", headlabel="0..*"];
+  UndertakingVerification -> User [arrowhead=none];
+  Notification -> Case [arrowhead=none];
+  Notification -> Undertaking [arrowhead=none];
+  CommitteeDirectoryEntry -> User [arrowhead=none];
+  AuditLog -> User [arrowhead=none];
+  Case -> CaseStatusValidator [style=dashed, arrowhead=vee];
+  CaseStatusValidator -> Role [style=dashed, arrowhead=vee];
+  Notification -> NotificationService [style=dashed, arrowhead=vee];
+}
